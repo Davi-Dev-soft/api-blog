@@ -1,17 +1,18 @@
 from flask import Flask, jsonify, request, make_response
 from estrutura_banco_de_dados import Autor, Postagem, app, db
 import json
-import jwt # ESSE IMPORT E PARA FAZER O LOGIN
-from datetime import datetime, timedelta # ESSE IMPORTS E PARA USAR TEMPO
-from functools import wraps # ESSE IMPORT E PARA FAZER O DECORADOR @WRAPS E @TOKEN OBRIGATORIO
+import jwt  # ESSE IMPORT E PARA FAZER O LOGIN
+from datetime import datetime, timedelta  # ESSE IMPORTS E PARA USAR TEMPO
+# ESSE IMPORT E PARA FAZER O DECORADOR @WRAPS E @TOKEN OBRIGATORIO
+from functools import wraps
 # Rota padrão - GET https://localhost:5000
 
 
 # CRIANDO O TOKEN OBRIGATORIO E A MANEIRA DE COLOCAR ELE PARA ACESSAR NOSSA API
 def token_obrigatorio(f):
     @wraps(f)
-    def decorated(*args, **kwargs): # COLOCAMOS OS ARGS E O KWARDS
-        token = None # INCIANDO O TOKEN COMO NONE
+    def decorated(*args, **kwargs):  # COLOCAMOS OS ARGS E O KWARDS
+        token = None  # INCIANDO O TOKEN COMO NONE
         # Verificar se um token foi enviado
         if 'x-access-token' in request.headers:
             token = request.headers['x-access-token']
@@ -19,10 +20,12 @@ def token_obrigatorio(f):
         # SE NAO EXISTE TOKEN FAREMOS ISSO
         if not token:
             return jsonify({'mensagem': 'Token nao foi incluido!'}, 401)
-        
+
         # Se temos um token, validar acesso consultando o BD
         try:
-            resultado = jwt.decode(token,app.config['SECRET_KEY'],algorithms=["HS256"]) # BASTA INSERIR ESSE CODIGO HS256 EM ALGORITHMS
+            # BASTA INSERIR ESSE CODIGO HS256 EM ALGORITHMS
+            resultado = jwt.decode(
+                token, app.config['SECRET_KEY'], algorithms=["HS256"])
             autor = Autor.query.filter_by(
                 id_autor=resultado['id_autor']).first()
         except:
@@ -31,22 +34,22 @@ def token_obrigatorio(f):
     return decorated
 
 
-
 # CRIANDO A AREA DE LOGIN E SENHA
 @app.route('/login')
 def login():
-    auth = request.authorization # CORDENADA PARA PEDIR AUTORIZACAO
-    if not auth or not auth.username or not auth.password: # COMANDO IF PARA SABER SE JA TEM AUTORIZACAO
-        return make_response('Login inválido', 401, {'WWW-Authenticate': 'Basic realm="Login obrigatório"'}) # USANDO MAKE_RESPONSE VOCE DEVOLVE UMA AREA DE LOGIN
-    usuario = Autor.query.filter_by(nome=auth.username).first() # POREM SE TIVER A AUTENTICACAO VAMOS VERIFICAR O BANCO DE DADOS
-    if not usuario: # SE NAO TIVER USUARIO NO BANCO DE DADOS VAMOS RETORNAR NOVAMENTE UM LOGIN
+    auth = request.authorization  # CORDENADA PARA PEDIR AUTORIZACAO
+    if not auth or not auth.username or not auth.password:  # COMANDO IF PARA SABER SE JA TEM AUTORIZACAO
+        # USANDO MAKE_RESPONSE VOCE DEVOLVE UMA AREA DE LOGIN
+        return make_response('Login inválido', 401, {'WWW-Authenticate': 'Basic realm="Login obrigatório"'})
+    # POREM SE TIVER A AUTENTICACAO VAMOS VERIFICAR O BANCO DE DADOS
+    usuario = Autor.query.filter_by(nome=auth.username).first()
+    if not usuario:  # SE NAO TIVER USUARIO NO BANCO DE DADOS VAMOS RETORNAR NOVAMENTE UM LOGIN
         return make_response('Login inválido', 401, {'WWW-Authenticate': 'Basic realm="Login obrigatório"'})
     if auth.password == usuario.senha:
         token = jwt.encode({'id_autor': usuario.id_autor, 'exp': datetime.utcnow(
         ) + timedelta(minutes=30)}, app.config['SECRET_KEY'])
-        return jsonify({'token':token})
+        return jsonify({'token': token})
     return make_response('Login inválido', 401, {'WWW-Authenticate': 'Basic realm="Login obrigatório"'})
-
 
 
 # AGORA COLOCANDO O @ TOKEN OBRIGATORIO EM TODOS OS ENDPOINTS
